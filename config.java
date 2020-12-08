@@ -42,8 +42,6 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import com.softilys.aggregates.ExerciseFrameworkAggregate;
-
 @Configuration
 @AutoConfigureAfter(AxonAutoConfiguration.class)
 public class AxonConfig {
@@ -51,7 +49,7 @@ public class AxonConfig {
 	@Autowired
 	private ConfigCommandProperties configProperties;
 
-	@Bean(name = "cs-ds")
+	@Bean(name = "ds")
 	public DataSource dataSource() {
 		DriverManagerDataSource dataSource = new DriverManagerDataSource();
 		dataSource.setDriverClassName(configProperties.getJpa().getDriverClassName());
@@ -67,8 +65,8 @@ public class AxonConfig {
 		return vendorAdapter;
 	}
 
-	@Bean(name = "cs-emf")
-	@PersistenceContext(unitName = "cs", name = "cs-em")
+	@Bean(name = "emf")
+	@PersistenceContext(unitName = "cs", name = "em")
 	public LocalContainerEntityManagerFactoryBean entityManagerFactoryBean() {
 
 		LocalContainerEntityManagerFactoryBean entityManagerFactoryBean = new LocalContainerEntityManagerFactoryBean();
@@ -95,22 +93,22 @@ public class AxonConfig {
 	@Primary
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(DataSource.class)
-	public PersistenceExceptionResolver persistenceExceptionResolver(@Qualifier("cs-ds") DataSource dataSource)
+	public PersistenceExceptionResolver persistenceExceptionResolver(@Qualifier("ds") DataSource dataSource)
 			throws SQLException {
 		return new SQLErrorCodesResolver(dataSource);
 	}
 
-	@Bean("cs-emp")
+	@Bean("emp")
 	@Primary
 	@ConditionalOnMissingBean
-	public EntityManagerProvider entityManagerProvider(@Qualifier("cs-emf") EntityManager entityManager) {
+	public EntityManagerProvider entityManagerProvider(@Qualifier("emf") EntityManager entityManager) {
 		return new SimpleEntityManagerProvider(entityManager);
 	}
 
-	@Bean(name = "cs-tx")
-	@DependsOn("cs-emf")
-	public PlatformTransactionManager transactionManager(@Qualifier("cs-emf") EntityManagerFactory entityManagerFactory,
-			@Qualifier("cs-ds") DataSource dataSource) {
+	@Bean(name = "tx")
+	@DependsOn("emf")
+	public PlatformTransactionManager transactionManager(@Qualifier("emf") EntityManagerFactory entityManagerFactory,
+			@Qualifier("ds") DataSource dataSource) {
 		JpaTransactionManager jpaTransactionManager = new JpaTransactionManager(entityManagerFactory);
 		jpaTransactionManager.setDataSource(dataSource);
 		return jpaTransactionManager;
@@ -119,7 +117,7 @@ public class AxonConfig {
 	@Bean
 	@Primary
 	@ConditionalOnMissingBean
-	public ConnectionProvider connectionProvider(@Qualifier("cs-ds") DataSource dataSource) {
+	public ConnectionProvider connectionProvider(@Qualifier("ds") DataSource dataSource) {
 		return new UnitOfWorkAwareConnectionProviderWrapper(new SpringDataSourceConnectionProvider(dataSource));
 	}
 
@@ -127,19 +125,19 @@ public class AxonConfig {
 	@Primary
 	@ConditionalOnMissingBean
 	public TransactionManager axonTransactionManager(
-			@Qualifier("cs-tx") PlatformTransactionManager transactionManager) {
+			@Qualifier("tx") PlatformTransactionManager transactionManager) {
 		return new SpringTransactionManager(transactionManager);
 	}
 
 	@Bean
 	public TokenStore tokenStore(Serializer serializer,
-			@Qualifier("cs-emp") EntityManagerProvider entityManagerProvider) {
+			@Qualifier("emp") EntityManagerProvider entityManagerProvider) {
 		return JpaTokenStore.builder().serializer(serializer).entityManagerProvider(entityManagerProvider).build();
 	}
 
-	@Bean(name = "cs-snapshotter")
+	@Bean(name = "snap")
 	public SpringAggregateSnapshotterFactoryBean snapshotterFactory(
-			@Qualifier("cs-tx") PlatformTransactionManager transactionManager) {
+			@Qualifier("tx") PlatformTransactionManager transactionManager) {
 		SpringAggregateSnapshotterFactoryBean springAggregateSnapshotterFactoryBean = new SpringAggregateSnapshotterFactoryBean();
 		springAggregateSnapshotterFactoryBean.setExecutor(Executors.newSingleThreadExecutor());
 		springAggregateSnapshotterFactoryBean.setTransactionManager(transactionManager);
